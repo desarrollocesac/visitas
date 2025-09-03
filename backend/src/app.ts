@@ -10,6 +10,7 @@ import multer from 'multer';
 import visitorRoutes from './routes/visitors';
 import visitRoutes from './routes/visits';
 import reportRoutes from './routes/reports';
+import userRoutes from './routes/users';
 
 // Import configuration
 import { connectDB } from './config/database';
@@ -53,6 +54,7 @@ app.get('/health', (req, res) => {
 app.use('/api/visitors', visitorRoutes);
 app.use('/api/visits', visitRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/users', userRoutes);
 
 // Departments endpoint
 app.get('/api/departments', async (req, res) => {
