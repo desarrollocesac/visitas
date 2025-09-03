@@ -1,0 +1,344 @@
+# Visit Control System - Complete .gitignore
+# ===========================================
+
+# Dependencies
+
+backend/node_modules/
+frontend/node_modules/
+mobile/node_modules/
+
+node_modules/
+*/node_modules/
+**/node_modules/
+
+# Package-lock files (keep package.json but ignore locks for better compatibility)
+package-lock.json
+*/package-lock.json
+**/package-lock.json
+yarn.lock
+*/yarn.lock
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*/.env
+*/.env.local
+**/.env*
+
+# Build outputs
+dist/
+build/
+*/dist/
+*/build/
+**/dist/
+**/build/
+web-build/
+*/web-build/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+*/logs/
+**/logs/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*/coverage/
+**/coverage/
+*.lcov
+.nyc_output
+
+# TypeScript
+*.tsbuildinfo
+*/*.tsbuildinfo
+**/*.tsbuildinfo
+*.d.ts.map
+
+# Optional npm cache directory
+.npm
+*/.npm
+**/.npm
+
+# Optional eslint cache
+.eslintcache
+*/.eslintcache
+**/.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Yarn Integrity file
+.yarn-integrity
+*/.yarn-integrity
+
+# parcel-bundler cache
+.cache
+.parcel-cache
+*/.cache
+*/.parcel-cache
+
+# Next.js build output
+.next
+*/.next
+
+# Nuxt.js build / generate output
+.nuxt
+*/.nuxt
+
+# Storybook build outputs
+.out
+.storybook-out
+*/.out
+*/.storybook-out
+storybook-static/
+
+# Temporary folders
+tmp/
+temp/
+*/tmp/
+*/temp/
+**/tmp/
+**/temp/
+.tmp/
+*/.tmp/
+
+# Backend specific (Node.js + TypeScript + PostgreSQL)
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/dist/
+backend/build/
+backend/lib/
+backend/*.sql.backup
+backend/*.dump
+backend/*.sql~
+backend/.pm2/
+backend/ecosystem.config.js
+
+# Frontend specific (React + TypeScript)
+frontend/build/
+frontend/dist/
+frontend/coverage/
+frontend/.eslintcache
+frontend/react-devtools-profiler.*
+frontend/bundle-analyzer-report.html
+frontend/sw.js
+frontend/workbox-*.js
+
+# Mobile specific (React Native Expo + TypeScript)
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/.expo-shared/
+mobile/*.jsbundle
+mobile/ios/build/
+mobile/ios/Pods/
+mobile/ios/*.xcworkspace
+!mobile/ios/*.xcworkspace/contents.xcworkspacedata
+mobile/android/build/
+mobile/android/app/build/
+mobile/android/.gradle/
+mobile/android/captures/
+mobile/android/keystores/debug.keystore
+mobile/*/fastlane/report.xml
+mobile/*/fastlane/Preview.html
+mobile/*/fastlane/screenshots
+mobile/*/fastlane/test_output
+mobile/.watchmanconfig
+mobile/.metro-health-check*
+
+# Shared folder compiled files
+shared/dist/
+shared/build/
+shared/lib/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# Database files
+*.sqlite
+*.db
+*.sqlite3
+*.db3
+
+# Certificates and keys
+*.pem
+*.key
+*.cert
+*.crt
+*.p8
+*.p12
+*.mobileprovision
+*.keystore
+!debug.keystore
+
+# Docker
+.dockerignore
+Dockerfile*
+docker-compose*.yml
+.docker/
+
+# Process managers
+.pm2/
+ecosystem.config.js
+pm2.config.js
+
+# Test artifacts
+test-results/
+e2e/artifacts/
+playwright-report/
+playwright/.cache/
+detox/
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Runtime and cache files
+.serverless/
+.fusebox/
+.dynamodb/
+.tern-port
+
+# Miscellaneous
+*.tgz
+*.tar.gz
+*.rar
+*.zip
+*.7z
+
+# Local development files
+.local/
+.temp/
+.temporary/
+
+# Error logs
+error.log
+errors.log
+
+# Performance logs
+*.cpuprofile
+*.heapprofile
+
+# IDE workspace files
+*.code-workspace
+
+# Gradle files (Android)
+.gradle/
+gradle-wrapper.jar
+gradlew
+gradlew.bat
+
+# Maven files
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+# Python cache (if any Python scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ruby files (if any Ruby scripts)
+*.gem
+*.rbc
+Gemfile.lock
+
+# Generated documentation
+docs/build/
+docs/dist/
+
+# Sentry
+.sentryclirc
+
+# Vercel
+.vercel/
+
+# Netlify
+.netlify/
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+
+# AWS
+.aws/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Kubernetes
+*.kubeconfig
+
+# VSCode specific
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+.vscode/.ropeproject
+
+# JetBrains IDEs
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Local History for Visual Studio Code
+.history/
