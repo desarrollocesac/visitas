@@ -17,14 +17,25 @@ import {
   MenuItem,
   Stepper,
   Step,
-  StepLabel
+  StepLabel,
+  Autocomplete,
+  Divider,
+  Stack,
+  IconButton
 } from '@mui/material';
 import {
   PhotoCamera,
   CameraAlt,
   PersonAdd,
   CheckCircle,
-  Error as ErrorIcon
+  Error as ErrorIcon,
+  Search,
+  Person,
+  Business,
+  ContactPhone,
+  Email,
+  Badge,
+  Assignment
 } from '@mui/icons-material';
 import axios from 'axios';
 import StickerPreview from './StickerPreview';
@@ -40,7 +51,8 @@ const VisitorRegistration = () => {
   
   // Form data
   const [formData, setFormData] = useState({
-    idNumber: '',
+    documentType: 'Cedula',
+    documentNumber: '',
     firstName: '',
     lastName: '',
     email: '',
@@ -67,8 +79,9 @@ const VisitorRegistration = () => {
   // Camera state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [stream, setStream] = useState(null);
+  const [cameraMode, setCameraMode] = useState('visitor'); // 'visitor' or 'id'
 
-  const steps = ['Escanear ID', 'Tomar Foto', 'Información de Visita', 'Confirmar'];
+  const steps = ['Identificación del Visitante', 'Documentos Requeridos', 'Información de Visita', 'Confirmar'];
 
   const departments = [
     'Recepción',
@@ -80,6 +93,19 @@ const VisitorRegistration = () => {
     'Contabilidad',
     'Gerencia'
   ];
+
+  // Mock data for hosts/employees
+  const hostOptions = [
+    { name: 'Carlos Martín', department: 'Ventas', email: 'carlos.martin@empresa.com' },
+    { name: 'Ana López', department: 'Marketing', email: 'ana.lopez@empresa.com' },
+    { name: 'Luis Herrera', department: 'IT', email: 'luis.herrera@empresa.com' },
+    { name: 'María García', department: 'Recursos Humanos', email: 'maria.garcia@empresa.com' },
+    { name: 'José Rodríguez', department: 'Administración', email: 'jose.rodriguez@empresa.com' },
+    { name: 'Laura Fernández', department: 'Contabilidad', email: 'laura.fernandez@empresa.com' },
+    { name: 'Pedro Sánchez', department: 'Gerencia', email: 'pedro.sanchez@empresa.com' }
+  ];
+
+  const documentTypes = ['Cedula', 'Pasaporte'];
 
   const accessAreas = [
     'Planta Baja',
@@ -152,12 +178,12 @@ const VisitorRegistration = () => {
       setTimeout(() => {
         setFormData(prev => ({
           ...prev,
-          idNumber: `ID${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+          documentNumber: Math.random().toString().substr(2, 11),
           firstName: 'Juan',
           lastName: 'Pérez'
         }));
         setLoading(false);
-        setActiveStep(1);
+        // No avanzar automáticamente - el usuario decide cuándo continuar
       }, 2000);
     } catch (err) {
       setError('Error al extraer información del ID');
@@ -166,7 +192,8 @@ const VisitorRegistration = () => {
   };
 
   // Camera functions
-  const startCamera = async () => {
+  const startCamera = async (mode = 'visitor') => {
+    setCameraMode(mode);
     try {
       setError(''); // Clear any previous errors
       console.log('Iniciando cámara...');
@@ -239,7 +266,7 @@ const VisitorRegistration = () => {
   };
 
   const capturePhoto = useCallback(() => {
-    console.log('Iniciando captura de foto...');
+    console.log(`Iniciando captura de foto (${cameraMode})...`);
     
     if (!videoRef.current || !canvasRef.current || !stream) {
       setError('La cámara no está lista. Abra la cámara nuevamente.');
@@ -310,27 +337,36 @@ const VisitorRegistration = () => {
         });
         
         if (blob && blob.size > 0) {
-          const file = new File([blob], 'visitor-photo.jpg', { type: 'image/jpeg' });
+          const fileName = cameraMode === 'id' ? 'id-photo.jpg' : 'visitor-photo.jpg';
+          const file = new File([blob], fileName, { type: 'image/jpeg' });
           const previewUrl = URL.createObjectURL(file);
           
           console.log('Archivo creado:', {
             name: file.name,
             size: file.size,
             type: file.type,
-            previewUrl: previewUrl
+            previewUrl: previewUrl,
+            mode: cameraMode
           });
           
-          setVisitorPhoto(file);
-          setVisitorPhotoPreview(previewUrl);
+          // Set the appropriate photo based on camera mode
+          if (cameraMode === 'id') {
+            setIdPhoto(file);
+            setIdPhotoPreview(previewUrl);
+          } else {
+            setVisitorPhoto(file);
+            setVisitorPhotoPreview(previewUrl);
+          }
+          
           setError(''); // Clear any errors
           
           // Don't stop camera immediately, let user see preview first
           setTimeout(() => {
             stopCamera();
-            setActiveStep(2);
+            // No avanzar automáticamente - el usuario puede continuar manualmente
           }, 500);
           
-          console.log('Foto capturada exitosamente');
+          console.log(`Foto ${cameraMode} capturada exitosamente`);
         } else {
           setError('Error al crear la imagen. Intente nuevamente.');
           console.error('Blob inválido o vacío');
@@ -340,7 +376,7 @@ const VisitorRegistration = () => {
       console.error('Error capturing photo:', err);
       setError('Error al capturar la foto. Intente nuevamente.');
     }
-  }, [stream]);
+  }, [stream, cameraMode]);
 
   const handleVisitorPhotoUpload = (event) => {
     const file = event.target.files[0];
@@ -361,7 +397,7 @@ const VisitorRegistration = () => {
       
       setVisitorPhoto(file);
       setVisitorPhotoPreview(URL.createObjectURL(file));
-      setActiveStep(2);
+      // No avanzar automáticamente - el usuario decide cuándo continuar
     }
   };
 
@@ -408,7 +444,8 @@ const VisitorRegistration = () => {
 
   const resetForm = () => {
     setFormData({
-      idNumber: '',
+      documentType: 'Cedula',
+      documentNumber: '',
       firstName: '',
       lastName: '',
       email: '',
@@ -434,330 +471,614 @@ const VisitorRegistration = () => {
     switch (activeStep) {
       case 0:
         return (
-          <Box sx={{ textAlign: 'center', p: 3 }}>
-            <Typography variant="h5" gutterBottom>
-              Paso 1: Escanear Identificación
-            </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-              Por favor, capture o suba una foto clara de su identificación
+          <Box sx={{ p: 4, maxWidth: '100%' }}>
+            <Typography variant="h5" gutterBottom sx={{ mb: 3, textAlign: 'center', fontWeight: 600 }}>
+              Paso 1: Identificación del Visitante
             </Typography>
             
-            {idPhotoPreview && (
-              <Box sx={{ mb: 3 }}>
-                <img 
-                  src={idPhotoPreview} 
-                  alt="ID Preview" 
-                  style={{ maxWidth: '300px', maxHeight: '200px', objectFit: 'contain' }}
-                />
-              </Box>
-            )}
+            <Grid container spacing={4}>
+              {/* Div de 12 columnas para todas las secciones */}
+              <Grid item xs={12}>
+                <Grid container spacing={3}>
+                  {/* Sección: Identificación del Visitante */}
+                  <Grid item xs={12}>
+                    <Paper elevation={2} sx={{ p: 3, backgroundColor: 'rgba(25, 118, 210, 0.04)' }}>
+                      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
+                        <Badge color="primary" />
+                        <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                          Identificación del Visitante
+                        </Typography>
+                      </Stack>
+                      
+                      <Grid container spacing={3}>
+                        <Grid item xs={12} md={4}>
+                          <FormControl fullWidth variant="outlined">
+                            <InputLabel>Tipo de Documento</InputLabel>
+                            <Select
+                              value={formData.documentType}
+                              onChange={handleInputChange('documentType')}
+                              label="Tipo de Documento"
+                            >
+                              {documentTypes.map((type) => (
+                                <MenuItem key={type} value={type}>
+                                  {type}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                        
+                        <Grid item xs={12} md={6}>
+                          <TextField
+                            label="Número de Documento"
+                            value={formData.documentNumber}
+                            onChange={handleInputChange('documentNumber')}
+                            fullWidth
+                            variant="outlined"
+                            required
+                            placeholder="Ingrese el número del documento"
+                          />
+                        </Grid>
+                        
+                        <Grid item xs={12} md={2}>
+                          <Button
+                            variant="contained"
+                            startIcon={<Search />}
+                            fullWidth
+                            sx={{ height: '56px' }}
+                            onClick={() => {
+                              // Simulate search functionality
+                              if (formData.documentNumber) {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  firstName: 'María',
+                                  lastName: 'González',
+                                  email: 'maria.gonzalez@email.com',
+                                  phone: '+1 (555) 123-4567'
+                                }));
+                              }
+                            }}
+                          >
+                            Buscar
+                          </Button>
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                  </Grid>
 
-            <input
-              accept="image/*"
-              style={{ display: 'none' }}
-              id="id-photo-upload"
-              type="file"
-              ref={idPhotoRef}
-              onChange={handleIdPhotoUpload}
-            />
-            <label htmlFor="id-photo-upload">
+                  {/* Sección: Información Personal */}
+                  <Grid item xs={12}>
+                    <Paper elevation={2} sx={{ p: 3, backgroundColor: 'rgba(76, 175, 80, 0.04)' }}>
+                      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
+                        <Person color="success" />
+                        <Typography variant="h6" sx={{ fontWeight: 600, color: 'success.main' }}>
+                          Información Personal
+                        </Typography>
+                      </Stack>
+                      
+                      <Grid container spacing={3}>
+                        <Grid item xs={12} md={6}>
+                          <TextField
+                            label="Nombre"
+                            value={formData.firstName}
+                            onChange={handleInputChange('firstName')}
+                            fullWidth
+                            variant="outlined"
+                            required
+                            InputProps={{
+                              startAdornment: <Person sx={{ color: 'text.secondary', mr: 1 }} />
+                            }}
+                          />
+                        </Grid>
+                        
+                        <Grid item xs={12} md={6}>
+                          <TextField
+                            label="Apellido"
+                            value={formData.lastName}
+                            onChange={handleInputChange('lastName')}
+                            fullWidth
+                            variant="outlined"
+                            required
+                            InputProps={{
+                              startAdornment: <Person sx={{ color: 'text.secondary', mr: 1 }} />
+                            }}
+                          />
+                        </Grid>
+                        
+                        <Grid item xs={12} md={6}>
+                          <TextField
+                            label="Email"
+                            type="email"
+                            value={formData.email}
+                            onChange={handleInputChange('email')}
+                            fullWidth
+                            variant="outlined"
+                            InputProps={{
+                              startAdornment: <Email sx={{ color: 'text.secondary', mr: 1 }} />
+                            }}
+                          />
+                        </Grid>
+                        
+                        <Grid item xs={12} md={6}>
+                          <TextField
+                            label="Teléfono"
+                            value={formData.phone}
+                            onChange={handleInputChange('phone')}
+                            fullWidth
+                            variant="outlined"
+                            InputProps={{
+                              startAdornment: <ContactPhone sx={{ color: 'text.secondary', mr: 1 }} />
+                            }}
+                          />
+                        </Grid>
+                        
+                        <Grid item xs={12}>
+                          <TextField
+                            label="Empresa"
+                            value={formData.company}
+                            onChange={handleInputChange('company')}
+                            fullWidth
+                            variant="outlined"
+                            InputProps={{
+                              startAdornment: <Business sx={{ color: 'text.secondary', mr: 1 }} />
+                            }}
+                          />
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                  </Grid>
+                </Grid>
+              </Grid>
+            </Grid>
+
+            <Divider sx={{ my: 4 }} />
+
+            <Box sx={{ textAlign: 'center' }}>
               <Button
                 variant="contained"
-                component="span"
-                startIcon={<PhotoCamera />}
+                onClick={() => setActiveStep(1)}
                 size="large"
-                sx={{ minWidth: 200 }}
+                sx={{
+                  px: 4,
+                  py: 1.5,
+                  fontSize: '1.1rem',
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  boxShadow: 3
+                }}
+                disabled={!formData.firstName || !formData.lastName || !formData.documentNumber}
               >
-                Subir Foto de ID
+                Continuar a Documentos
               </Button>
-            </label>
-
-            {loading && (
-              <Box sx={{ mt: 3 }}>
-                <CircularProgress />
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  Extrayendo información del ID...
-                </Typography>
-              </Box>
-            )}
+            </Box>
           </Box>
         );
 
       case 1:
         return (
-          <Box sx={{ textAlign: 'center', p: 3 }}>
-            <Typography variant="h5" gutterBottom>
-              Paso 2: Tomar Foto del Visitante
+          <Box sx={{ p: 4, maxWidth: '100%' }}>
+            <Typography variant="h5" gutterBottom sx={{ mb: 3, textAlign: 'center', fontWeight: 600 }}>
+              Paso 2: Documentos Requeridos ({formData.firstName} {formData.lastName})
             </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-              Capture una foto del visitante para completar el registro
-            </Typography>
-
-            {visitorPhotoPreview && (
-              <Box sx={{ mb: 3, p: 2, border: '2px solid #4caf50', borderRadius: 2, backgroundColor: 'rgba(76, 175, 80, 0.1)' }}>
-                <Typography variant="h6" color="success.main" gutterBottom>
-                  ✓ Foto Capturada
-                </Typography>
-                <img
-                  src={visitorPhotoPreview}
-                  alt="Visitor Preview"
-                  style={{
-                    maxWidth: '300px',
-                    maxHeight: '200px',
-                    objectFit: 'contain',
-                    display: 'block',
-                    margin: '0 auto',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px'
-                  }}
-                  onLoad={() => console.log('Imagen preview cargada exitosamente')}
-                  onError={(e) => {
-                    console.error('Error cargando imagen preview:', e);
-                    setError('Error mostrando la imagen capturada');
-                  }}
-                />
-              </Box>
-            )}
-
-            {isCameraOpen ? (
-              <Box sx={{ mb: 3 }}>
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  style={{ width: '100%', maxWidth: '400px', height: 'auto' }}
-                />
-                <canvas ref={canvasRef} style={{ display: 'none' }} />
-                <Box sx={{ mt: 2 }}>
-                  <Button
-                    variant="contained"
-                    onClick={capturePhoto}
-                    startIcon={<CameraAlt />}
-                    sx={{ mr: 2 }}
-                  >
-                    Capturar Foto
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    onClick={stopCamera}
-                  >
-                    Cancelar
-                  </Button>
-                </Box>
-              </Box>
-            ) : (
-              <Box>
-                <Button
-                  variant="contained"
-                  onClick={startCamera}
-                  startIcon={<CameraAlt />}
-                  size="large"
-                  sx={{ mr: 2, minWidth: 150 }}
-                >
-                  Abrir Cámara
-                </Button>
                 
-                <input
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  id="visitor-photo-upload"
-                  type="file"
-                  onChange={handleVisitorPhotoUpload}
-                />
-                <label htmlFor="visitor-photo-upload">
-                  <Button
-                    variant="outlined"
-                    component="span"
-                    startIcon={<PhotoCamera />}
-                    size="large"
-                    sx={{ minWidth: 150 }}
-                  >
-                    Subir Foto
-                  </Button>
-                </label>
-                
-                {visitorPhotoPreview && (
-                  <Box sx={{ mt: 2 }}>
-                    <Button
-                      variant="outlined"
-                      onClick={() => {
-                        setVisitorPhoto(null);
-                        setVisitorPhotoPreview(null);
-                        setError('');
-                      }}
-                      color="warning"
-                    >
-                      Retomar Foto
-                    </Button>
-                  </Box>
-                )}
-              </Box>
-            )}
+            <Grid container spacing={4}>
+              {/* Div de 12 columnas con título */}
+              <Grid item xs={12}>
+
+                <Grid container spacing={3}>
+                  {/* Columna 1 de 6 - Foto del ID */}
+                  <Grid item xs={12} md={6}>
+                    <Paper elevation={2} sx={{ p: 3, textAlign: 'center', minHeight: 400, backgroundColor: 'rgba(25, 118, 210, 0.04)' }}>
+                      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3, justifyContent: 'center' }}>
+                        <Badge color="primary" />
+                        <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                          Foto del Documento de Identidad
+                        </Typography>
+                      </Stack>
+                      
+                      {idPhotoPreview ? (
+                        <Box>
+                          <img
+                            src={idPhotoPreview}
+                            alt="ID Preview"
+                            style={{
+                              maxWidth: '100%',
+                              maxHeight: '200px',
+                              objectFit: 'contain',
+                              border: '2px solid #4caf50',
+                              borderRadius: '8px'
+                            }}
+                          />
+                          <Typography variant="body2" color="success.main" sx={{ mt: 2 }}>
+                            ✓ Documento cargado exitosamente
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Box sx={{ py: 4 }}>
+                          <Badge sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
+                          <Typography variant="body2" color="text.secondary">
+                            No se ha cargado el documento
+                          </Typography>
+                        </Box>
+                      )}
+                      
+                      <Box sx={{ mt: 3 }}>
+                        <input
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          id="id-photo-upload"
+                          type="file"
+                          ref={idPhotoRef}
+                          onChange={handleIdPhotoUpload}
+                        />
+                        <label htmlFor="id-photo-upload">
+                          <Button
+                            variant="contained"
+                            component="span"
+                            startIcon={<PhotoCamera />}
+                            fullWidth
+                            sx={{ mb: 2 }}
+                          >
+                            Subir Foto del ID
+                          </Button>
+                        </label>
+                        <Button
+                          variant="outlined"
+                          startIcon={<CameraAlt />}
+                          fullWidth disabled
+                          onClick={() => startCamera('id')}
+                        >
+                          Tomar Foto del ID
+                        </Button>
+                      </Box>
+                    </Paper>
+                  </Grid>
+
+                  {/* Columna 2 de 6 - Foto del visitante */}
+                  <Grid item xs={12} md={6}>
+                    <Paper elevation={2} sx={{ p: 3, textAlign: 'center', minHeight: 400, backgroundColor: 'rgba(76, 175, 80, 0.04)' }}>
+                      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3, justifyContent: 'center' }}>
+                        <Person color="success" />
+                        <Typography variant="h6" sx={{ fontWeight: 600, color: 'success.main' }}>
+                          Foto del Visitante
+                        </Typography>
+                      </Stack>
+                      
+                      {visitorPhotoPreview ? (
+                        <Box>
+                          <img
+                            src={visitorPhotoPreview}
+                            alt="Visitor Preview"
+                            style={{
+                              maxWidth: '100%',
+                              maxHeight: '200px',
+                              objectFit: 'contain',
+                              border: '2px solid #4caf50',
+                              borderRadius: '8px'
+                            }}
+                          />
+                          <Typography variant="body2" color="success.main" sx={{ mt: 2 }}>
+                            ✓ Foto del visitante capturada
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Box sx={{ py: 4 }}>
+                          <Person sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
+                          <Typography variant="body2" color="text.secondary">
+                            No se ha capturado la foto del visitante
+                          </Typography>
+                        </Box>
+                      )}
+
+                      {isCameraOpen ? (
+                        <Box sx={{ mt: 3 }}>
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            style={{ width: '100%', maxWidth: '300px', height: 'auto', borderRadius: '8px' }}
+                          />
+                          <canvas ref={canvasRef} style={{ display: 'none' }} />
+                          <Box sx={{ mt: 2 }}>
+                            <Button
+                              variant="contained"
+                              onClick={capturePhoto}
+                              startIcon={<CameraAlt />}
+                              sx={{ mr: 1 }}
+                            >
+                              Capturar
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              onClick={stopCamera}
+                            >
+                              Cancelar
+                            </Button>
+                          </Box>
+                        </Box>
+                      ) : (
+                        <Box sx={{ mt: 3 }}>
+                          
+                          <input
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          id="visitor-photo-upload"
+                          type="file"
+                          onChange={handleVisitorPhotoUpload}
+                        />
+                        <label htmlFor="visitor-photo-upload">
+                          <Button
+                            variant="contained"
+                            component="span"
+                            startIcon={<PhotoCamera />}
+                            fullWidth
+                            sx={{ mb: 2 }}
+                          >
+                            Subir Foto del Visitante
+                          </Button>
+                        </label>
+
+                          <Button
+                          variant="outlined"
+                          startIcon={<CameraAlt />}
+                          fullWidth disabled
+                          onClick={() => startCamera('visitor')}
+                        >
+                          Tomar Foto del Visitante
+                        </Button>
+                        </Box>
+                      )}
+                    </Paper>
+                  </Grid>
+                </Grid>
+              </Grid>
+            </Grid>
+
+            <Divider sx={{ my: 4 }} />
+
+            <Box sx={{ textAlign: 'center' }}>
+              <Button
+                variant="contained"
+                onClick={() => setActiveStep(2)}
+                size="large"
+                sx={{
+                  px: 4,
+                  py: 1.5,
+                  fontSize: '1.1rem',
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  boxShadow: 3
+                }}
+                disabled={!visitorPhoto || !idPhoto}
+              >
+                Continuar a Información de Visita
+              </Button>
+            </Box>
           </Box>
         );
 
       case 2:
         return (
-          <Box sx={{ p: 3 }}>
-            <Typography variant="h5" gutterBottom>
-              Paso 3: Información de la Visita
+          <Box sx={{ p: 4, maxWidth: '100%' }}>
+            <Typography variant="h5" gutterBottom sx={{ mb: 4, textAlign: 'center', fontWeight: 600, color: 'primary.main' }}>
+              Paso 3: ¿A quién visitará en la institución?
             </Typography>
             
-            <Grid container spacing={3}>
-              {/* Información personal extraída */}
+            <Grid container spacing={4}>
+              {/* Div de 12 columnas para organizar todo */}
               <Grid item xs={12}>
-                <Typography variant="h6" gutterBottom>
-                  Información Personal (Extraída del ID)
-                </Typography>
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Número de ID"
-                  value={formData.idNumber}
-                  onChange={handleInputChange('idNumber')}
-                  fullWidth
-                  variant="outlined"
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Nombre"
-                  value={formData.firstName}
-                  onChange={handleInputChange('firstName')}
-                  fullWidth
-                  variant="outlined"
-                  required
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Apellido"
-                  value={formData.lastName}
-                  onChange={handleInputChange('lastName')}
-                  fullWidth
-                  variant="outlined"
-                  required
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleInputChange('email')}
-                  fullWidth
-                  variant="outlined"
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Teléfono"
-                  value={formData.phone}
-                  onChange={handleInputChange('phone')}
-                  fullWidth
-                  variant="outlined"
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Empresa"
-                  value={formData.company}
-                  onChange={handleInputChange('company')}
-                  fullWidth
-                  variant="outlined"
-                />
-              </Grid>
-
-              {/* Información de la visita */}
-              <Grid item xs={12}>
-                <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-                  Información de la Visita
-                </Typography>
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Persona a Visitar"
-                  value={formData.hostName}
-                  onChange={handleInputChange('hostName')}
-                  fullWidth
-                  variant="outlined"
-                  required
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth variant="outlined" required>
-                  <InputLabel>Departamento</InputLabel>
-                  <Select
-                    value={formData.department}
-                    onChange={handleInputChange('department')}
-                    label="Departamento"
-                  >
-                    {departments.map((dept) => (
-                      <MenuItem key={dept} value={dept}>
-                        {dept}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12}>
-                <TextField
-                  label="Propósito de la Visita"
-                  value={formData.purpose}
-                  onChange={handleInputChange('purpose')}
-                  fullWidth
-                  variant="outlined"
-                  multiline
-                  rows={2}
-                  required
-                />
-              </Grid>
-              
-              <Grid item xs={12}>
-                <FormControl fullWidth variant="outlined">
-                  <InputLabel>Áreas de Acceso</InputLabel>
-                  <Select
-                    multiple
-                    value={formData.accessAreas}
-                    onChange={handleAccessAreasChange}
-                    label="Áreas de Acceso"
-                    renderValue={(selected) => (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {selected.map((value) => (
-                          <Chip key={value} label={value} />
-                        ))}
-                      </Box>
-                    )}
-                  >
-                    {accessAreas.map((area) => (
-                      <MenuItem key={area} value={area}>
-                        {area}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <Grid container spacing={4}>
+                  
+                  {/* Sección Principal: ¿A quién visitará? */}
+                  <Grid item xs={12}>
+                    <Paper
+                      elevation={3}
+                      sx={{
+                        p: 4,
+                        backgroundColor: 'rgba(156, 39, 176, 0.06)',
+                        borderRadius: 3,
+                        border: '1px solid rgba(156, 39, 176, 0.2)'
+                      }}
+                    >
+                      <Grid container spacing={4}>
+                        {/* Persona a visitar */}
+                        <Grid item xs={12} md={6}>
+                          <Box sx={{ mb: 3 }}>
+                            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'secondary.main' }}>
+                              👤 Persona a Visitar
+                            </Typography>
+                            <Autocomplete
+                              options={hostOptions}
+                              getOptionLabel={(option) => `${option.name} - ${option.department}`}
+                              renderInput={(params) => (
+                                <TextField
+                                  {...params}
+                                  label="Busque por nombre o departamento"
+                                  required
+                                  variant="outlined"
+                                  placeholder="Escriba para buscar empleados..."
+                                  sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                      backgroundColor: 'white',
+                                      borderRadius: 2
+                                    }
+                                  }}
+                                />
+                              )}
+                              renderOption={(props, option) => (
+                                <Box component="li" {...props} sx={{ p: 2 }}>
+                                  <Stack>
+                                    <Typography variant="body1" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                                      {option.name}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      📍 {option.department} • ✉️ {option.email}
+                                    </Typography>
+                                  </Stack>
+                                </Box>
+                              )}
+                              onChange={(event, value) => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  hostName: value?.name || '',
+                                  department: value?.department || ''
+                                }));
+                              }}
+                              value={hostOptions.find(opt => opt.name === formData.hostName) || null}
+                            />
+                          </Box>
+                        </Grid>
+                        
+                        {/* Departamento */}
+                        <Grid item xs={12} md={6}>
+                          <Box sx={{ mb: 3 }}>
+                            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'secondary.main' }}>
+                              🏢 Departamento
+                            </Typography>
+                            <FormControl fullWidth variant="outlined" required>
+                              <Select
+                                value={formData.department}
+                                onChange={handleInputChange('department')}
+                                displayEmpty
+                                sx={{
+                                  backgroundColor: 'white',
+                                  borderRadius: 2
+                                }}
+                              >
+                                <MenuItem disabled value="">
+                                  <em>Seleccione un departamento</em>
+                                </MenuItem>
+                                {departments.map((dept) => (
+                                  <MenuItem key={dept} value={dept}>
+                                    {dept}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
+                          </Box>
+                        </Grid>
+                        
+                        {/* Propósito de la visita */}
+                        <Grid item xs={12}>
+                          <Box sx={{ mb: 3 }}>
+                            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'secondary.main' }}>
+                              📝 Propósito de la Visita
+                            </Typography>
+                            <TextField
+                              label="Describa el motivo de su visita"
+                              value={formData.purpose}
+                              onChange={handleInputChange('purpose')}
+                              fullWidth
+                              variant="outlined"
+                              multiline
+                              rows={4}
+                              required
+                              placeholder="Ej: Reunión de trabajo, consultoría, entrevista, capacitación..."
+                              sx={{
+                                '& .MuiOutlinedInput-root': {
+                                  backgroundColor: 'white',
+                                  borderRadius: 2
+                                }
+                              }}
+                            />
+                          </Box>
+                        </Grid>
+                        
+                        {/* Áreas de acceso */}
+                        <Grid item xs={12}>
+                          <Box>
+                            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'secondary.main' }}>
+                              🔐 Áreas de Acceso Autorizadas
+                            </Typography>
+                            <FormControl fullWidth variant="outlined">
+                              <Select
+                                multiple
+                                value={formData.accessAreas}
+                                onChange={handleAccessAreasChange}
+                                displayEmpty
+                                sx={{
+                                  backgroundColor: 'white',
+                                  borderRadius: 2
+                                }}
+                                renderValue={(selected) => {
+                                  if (selected.length === 0) {
+                                    return <em style={{ color: '#9e9e9e' }}>Seleccione las áreas autorizadas</em>;
+                                  }
+                                  return (
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.8 }}>
+                                      {selected.map((value) => (
+                                        <Chip
+                                          key={value}
+                                          label={value}
+                                          size="small"
+                                          color="secondary"
+                                          variant="filled"
+                                          sx={{
+                                            fontWeight: 500,
+                                            borderRadius: 2
+                                          }}
+                                        />
+                                      ))}
+                                    </Box>
+                                  );
+                                }}
+                              >
+                                {accessAreas.map((area) => (
+                                  <MenuItem key={area} value={area}>
+                                    📍 {area}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
+                          </Box>
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                  </Grid>
+                </Grid>
               </Grid>
             </Grid>
 
-            <Box sx={{ mt: 3, textAlign: 'center' }}>
-              <Button
-                variant="contained"
-                onClick={handleSubmit}
-                startIcon={<PersonAdd />}
-                size="large"
-                disabled={!formData.firstName || !formData.lastName || !formData.hostName || !formData.department || !formData.purpose}
+            <Divider sx={{ my: 5, borderColor: 'rgba(156, 39, 176, 0.3)' }} />
+
+            {/* Botón de registro mejorado */}
+            <Box sx={{ textAlign: 'center' }}>
+              <Paper
+                elevation={2}
+                sx={{
+                  p: 3,
+                  backgroundColor: 'rgba(25, 118, 210, 0.04)',
+                  borderRadius: 3,
+                  display: 'inline-block'
+                }}
               >
-                Registrar Visita
-              </Button>
+                <Typography variant="body1" sx={{ mb: 2, color: 'text.secondary' }}>
+                  ¿Está todo listo? Proceda con el registro
+                </Typography>
+                <Button
+                  variant="contained"
+                  onClick={handleSubmit}
+                  startIcon={<PersonAdd />}
+                  size="large"
+                  sx={{
+                    px: 6,
+                    py: 2,
+                    fontSize: '1.2rem',
+                    fontWeight: 700,
+                    borderRadius: 3,
+                    boxShadow: '0 8px 16px rgba(25, 118, 210, 0.3)',
+                    background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+                    '&:hover': {
+                      boxShadow: '0 12px 20px rgba(25, 118, 210, 0.4)',
+                      transform: 'translateY(-2px)'
+                    },
+                    transition: 'all 0.3s ease'
+                  }}
+                  disabled={!formData.hostName || !formData.department || !formData.purpose}
+                >
+                  Registrar Visita
+                </Button>
+              </Paper>
             </Box>
           </Box>
         );
@@ -793,7 +1114,7 @@ const VisitorRegistration = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 800, mx: 'auto', p: 2 }}>
+    <Box sx={{ maxWidth: '85%', mx: 'auto', p: 2 }}>
       <Card>
         <CardContent>
           <Typography variant="h4" component="h1" gutterBottom align="center">

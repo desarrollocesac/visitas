@@ -53,6 +53,19 @@ html, body {
   }
 }
 
+/* QR Scanner Animation */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 @keyframes slideInRight {
   from {
     opacity: 0;

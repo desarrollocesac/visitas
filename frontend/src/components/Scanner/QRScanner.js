@@ -1,4 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import Webcam from 'react-webcam';
+import jsQR from 'jsqr';
 import {
   Box,
   Card,
@@ -43,20 +45,24 @@ import {
   Close,
   Warning,
   Info,
-  MoreVert
+  MoreVert,
+  PhotoCamera,
+  FlipCameraIos
 } from '@mui/icons-material';
 
 const QRScanner = () => {
   const theme = useTheme();
-  const videoRef = useRef(null);
+  const webcamRef = useRef(null);
   const canvasRef = useRef(null);
   const [isScanning, setIsScanning] = useState(false);
-  const [stream, setStream] = useState(null);
   const [scanResult, setScanResult] = useState(null);
   const [showResultDialog, setShowResultDialog] = useState(false);
   const [recentScans, setRecentScans] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [facingMode, setFacingMode] = useState('environment');
+  const [capturedImage, setCapturedImage] = useState(null);
+  const scanIntervalRef = useRef(null);
 
   // Mock data for recent scans
   const mockRecentScans = [
@@ -96,53 +102,75 @@ const QRScanner = () => {
     };
   }, []);
 
-  const startScanning = async () => {
-    try {
-      setError('');
-      setLoading(true);
-      
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          facingMode: 'environment' // Use back camera on mobile
-        }
-      });
+  // Improved video constraints for better compatibility
+  const videoConstraints = {
+    width: { ideal: 640, min: 320, max: 1280 },
+    height: { ideal: 480, min: 240, max: 720 },
+    facingMode: facingMode,
+    frameRate: { ideal: 30, min: 10, max: 60 }
+  };
 
-      setStream(mediaStream);
-      setIsScanning(true);
-      setLoading(false);
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        videoRef.current.play();
+  const startScanning = useCallback(() => {
+    setError('');
+    setLoading(true);
+    setCapturedImage(null);
+    
+    // Add timeout to handle camera loading issues
+    const loadingTimeout = setTimeout(() => {
+      if (loading) {
+        setLoading(false);
+        setError('Timeout al inicializar la cámara. Intenta de nuevo o verifica los permisos de cámara.');
       }
-
-      // Simulate QR scanning
-      setTimeout(() => {
-        simulateQRScan();
-      }, 3000);
-
-    } catch (err) {
-      setError('No se pudo acceder a la cámara. Verifique los permisos.');
+    }, 10000); // 10 second timeout
+    
+    // Set scanning state after a short delay to ensure camera loads
+    setTimeout(() => {
+      clearTimeout(loadingTimeout);
       setLoading(false);
-      setIsScanning(false);
-    }
-  };
+      setIsScanning(true);
+      
+      // Start scanning for QR codes
+      scanIntervalRef.current = setInterval(() => {
+        scanForQR();
+      }, 100);
+    }, 1000); // Increased delay for better camera initialization
+  }, [loading]);
 
-  const stopScanning = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
+  const stopScanning = useCallback(() => {
     setIsScanning(false);
-    setLoading(false);
-  };
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+  }, []);
 
-  const simulateQRScan = () => {
-    // Simulate successful QR scan
+  const scanForQR = useCallback(() => {
+    if (webcamRef.current && canvasRef.current) {
+      const video = webcamRef.current.video;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        
+        if (code) {
+          console.log('QR Code detected:', code.data);
+          stopScanning();
+          processQRCode(code.data);
+        }
+      }
+    }
+  }, [stopScanning]);
+
+  const processQRCode = (qrData) => {
+    // Process the QR code data
     const mockScanResult = {
-      visitorId: 'VIS-2025-001',
+      visitorId: qrData.includes('VIS-') ? qrData : 'VIS-2025-001',
       visitorName: 'Ana Rodríguez',
       company: 'Tech Solutions Inc.',
       purpose: 'Reunión de negocios',
@@ -152,12 +180,12 @@ const QRScanner = () => {
       issueDate: '2025-01-03',
       expiryDate: '2025-01-03',
       photo: null,
-      status: 'valid'
+      status: 'valid',
+      qrData: qrData
     };
 
     setScanResult(mockScanResult);
     setShowResultDialog(true);
-    stopScanning();
     
     // Add to recent scans
     const newScan = {
@@ -172,6 +200,25 @@ const QRScanner = () => {
     
     setRecentScans(prev => [newScan, ...prev.slice(0, 9)]);
   };
+
+  const capturePhoto = useCallback(() => {
+    if (webcamRef.current) {
+      const imageSrc = webcamRef.current.getScreenshot();
+      setCapturedImage(imageSrc);
+    }
+  }, []);
+
+  const switchCamera = useCallback(() => {
+    setFacingMode(prevFacingMode =>
+      prevFacingMode === 'environment' ? 'user' : 'environment'
+    );
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopScanning();
+    };
+  }, [stopScanning]);
 
   const handleManualEntry = () => {
     // Simulate manual entry
@@ -489,6 +536,262 @@ const QRScanner = () => {
     </Dialog>
   );
 
+  const renderScannerContent = () => {
+    if (!isScanning && !loading) {
+      return (
+        <Box sx={{ py: 6 }}>
+          <QrCodeScanner
+            sx={{
+              fontSize: 120,
+              color: theme.palette.primary.main,
+              mb: 3,
+              opacity: 0.7
+            }}
+          />
+          <Typography variant="h6" gutterBottom>
+            Listo para escanear
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+            Presiona el botón para iniciar el escáner de códigos QR
+          </Typography>
+          
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<CameraAlt />}
+              onClick={startScanning}
+              sx={{ minWidth: 160 }}
+            >
+              Iniciar Escáner
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              onClick={handleManualEntry}
+              sx={{ minWidth: 160 }}
+            >
+              Entrada Manual
+            </Button>
+          </Box>
+        </Box>
+      );
+    }
+    
+    if (isScanning) {
+      return (
+        <Box>
+          <Box sx={{
+            position: 'relative',
+            display: 'inline-block',
+            borderRadius: 2,
+            overflow: 'hidden',
+            border: `3px solid ${theme.palette.primary.main}`,
+            boxShadow: theme.shadows[8]
+          }}>
+            <Webcam
+              ref={webcamRef}
+              audio={false}
+              width={500}
+              height={375}
+              screenshotFormat="image/jpeg"
+              videoConstraints={videoConstraints}
+              onUserMedia={() => {
+                setError('');
+                console.log('Camera access granted successfully');
+              }}
+              onUserMediaError={(error) => {
+                console.error('Webcam error:', error);
+                let errorMessage = 'Error al acceder a la cámara. ';
+                
+                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                  errorMessage += 'Permisos de cámara denegados. Por favor, permite el acceso a la cámara y recarga la página.';
+                } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                  errorMessage += 'No se encontró ninguna cámara. Verifica que tu dispositivo tenga una cámara conectada.';
+                } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+                  errorMessage += 'La cámara está siendo usada por otra aplicación. Cierra otras aplicaciones que puedan estar usando la cámara.';
+                } else if (error.name === 'OverconstrainedError' || error.name === 'ConstraintNotSatisfiedError') {
+                  errorMessage += 'La configuración de cámara solicitada no es compatible con tu dispositivo.';
+                } else if (error.name === 'NotSupportedError') {
+                  errorMessage += 'Tu navegador no soporta el acceso a la cámara. Intenta con Chrome, Firefox o Safari.';
+                } else {
+                  errorMessage += `Error específico: ${error.name || error.message}. Intenta recargar la página.`;
+                }
+                
+                setError(errorMessage);
+                setIsScanning(false);
+                setLoading(false);
+              }}
+            />
+            
+            <Box sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              pointerEvents: 'none'
+            }}>
+              <Box sx={{
+                width: 200,
+                height: 200,
+                border: `2px solid ${theme.palette.success.main}`,
+                borderRadius: 2,
+                position: 'relative',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: -10,
+                  left: -10,
+                  right: -10,
+                  bottom: -10,
+                  border: `2px dashed ${alpha(theme.palette.success.main, 0.6)}`,
+                  borderRadius: 2,
+                  animation: 'pulse 2s infinite'
+                }
+              }} />
+            </Box>
+          </Box>
+          
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
+          
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="h6" gutterBottom color="primary">
+              Escaneando códigos QR...
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Coloca el código QR dentro del marco verde
+            </Typography>
+            
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <Button
+                variant="outlined"
+                onClick={stopScanning}
+                startIcon={<Close />}
+              >
+                Detener
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={capturePhoto}
+                startIcon={<PhotoCamera />}
+              >
+                Capturar
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={switchCamera}
+                startIcon={<FlipCameraIos />}
+              >
+                Cambiar Cámara
+              </Button>
+            </Box>
+          </Box>
+
+          {capturedImage && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Imagen Capturada
+              </Typography>
+              <img
+                src={capturedImage}
+                alt="Captured"
+                style={{
+                  maxWidth: '300px',
+                  width: '100%',
+                  borderRadius: theme.shape.borderRadius
+                }}
+              />
+            </Box>
+          )}
+        </Box>
+      );
+    }
+    
+    if (loading) {
+      return (
+        <Box>
+          <Box sx={{
+            position: 'relative',
+            display: 'inline-block',
+            borderRadius: 2,
+            overflow: 'hidden',
+            border: `3px solid ${theme.palette.primary.main}`,
+            boxShadow: theme.shadows[8]
+          }}>
+            <Webcam
+              ref={webcamRef}
+              audio={false}
+              width={500}
+              height={375}
+              screenshotFormat="image/jpeg"
+              videoConstraints={videoConstraints}
+              onUserMedia={() => {
+                setError('');
+                console.log('Camera initialized successfully');
+              }}
+              onUserMediaError={(error) => {
+                console.error('Webcam error during loading:', error);
+                let errorMessage = 'Error al acceder a la cámara. ';
+                
+                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                  errorMessage += 'Permisos de cámara denegados. Por favor, permite el acceso a la cámara y recarga la página.';
+                } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                  errorMessage += 'No se encontró ninguna cámara. Verifica que tu dispositivo tenga una cámara conectada.';
+                } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+                  errorMessage += 'La cámara está siendo usada por otra aplicación. Cierra otras aplicaciones que puedan estar usando la cámara.';
+                } else if (error.name === 'OverconstrainedError' || error.name === 'ConstraintNotSatisfiedError') {
+                  errorMessage += 'La configuración de cámara solicitada no es compatible con tu dispositivo.';
+                } else if (error.name === 'NotSupportedError') {
+                  errorMessage += 'Tu navegador no soporta el acceso a la cámara. Intenta con Chrome, Firefox o Safari.';
+                } else {
+                  errorMessage += `Error específico: ${error.name || error.message}. Intenta recargar la página.`;
+                }
+                
+                setError(errorMessage);
+                setLoading(false);
+                setIsScanning(false);
+              }}
+            />
+            
+            <Box sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: alpha(theme.palette.primary.main, 0.1),
+              pointerEvents: 'none'
+            }}>
+              <Box sx={{ textAlign: 'center' }}>
+                <CircularProgress size={60} sx={{ mb: 2, color: theme.palette.primary.main }} />
+                <Typography variant="h6" color="primary">
+                  Iniciando cámara...
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+          
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
+          
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="body2" color="text.secondary">
+              Preparando el escáner QR
+            </Typography>
+          </Box>
+        </Box>
+      );
+    }
+    
+    return null;
+  };
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
@@ -503,8 +806,40 @@ const QRScanner = () => {
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
-          {error}
+        <Alert
+          severity="error"
+          sx={{ mb: 3 }}
+          onClose={() => setError('')}
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              startIcon={<Refresh />}
+              onClick={() => {
+                setError('');
+                startScanning();
+              }}
+            >
+              Reintentar
+            </Button>
+          }
+        >
+          <Box>
+            <Typography variant="subtitle2" gutterBottom>
+              Error de cámara
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              {error}
+            </Typography>
+            {window.location.protocol === 'http:' && window.location.hostname !== 'localhost' && (
+              <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 1 }}>
+                ⚠️ Nota: Estás usando HTTP en lugar de HTTPS. Algunos navegadores requieren HTTPS para acceder a la cámara.
+              </Typography>
+            )}
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+              💡 Consejos: Asegúrate de que ninguna otra aplicación esté usando la cámara, permite los permisos cuando el navegador lo solicite, y considera usar Chrome o Firefox para mejor compatibilidad.
+            </Typography>
+          </Box>
         </Alert>
       )}
 
@@ -520,87 +855,7 @@ const QRScanner = () => {
               </Typography>
               
               <Box sx={{ textAlign: 'center' }}>
-                {!isScanning && !loading ? (
-                  <Box sx={{ py: 6 }}>
-                    <QrCodeScanner 
-                      sx={{ 
-                        fontSize: 120, 
-                        color: theme.palette.primary.main, 
-                        mb: 3,
-                        opacity: 0.7 
-                      }} 
-                    />
-                    <Typography variant="h6" gutterBottom>
-                      Listo para escanear
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-                      Presiona el botón para iniciar el escáner de códigos QR
-                    </Typography>
-                    
-                    <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
-                      <Button
-                        variant="contained"
-                        size="large"
-                        startIcon={<CameraAlt />}
-                        onClick={startScanning}
-                        sx={{ minWidth: 160 }}
-                      >
-                        Iniciar Escáner
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        size="large"
-                        onClick={handleManualEntry}
-                        sx={{ minWidth: 160 }}
-                      >
-                        Entrada Manual
-                      </Button>
-                    </Box>
-                  </Box>
-                ) : loading ? (
-                  <Box sx={{ py: 6 }}>
-                    <CircularProgress size={60} sx={{ mb: 3 }} />
-                    <Typography variant="h6" gutterBottom>
-                      Iniciando cámara...
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Por favor, permita el acceso a la cámara
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Box>
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      style={{
-                        width: '100%',
-                        maxWidth: '500px',
-                        height: 'auto',
-                        borderRadius: theme.shape.borderRadius,
-                        border: `2px solid ${theme.palette.primary.main}`
-                      }}
-                    />
-                    <canvas ref={canvasRef} style={{ display: 'none' }} />
-                    
-                    <Box sx={{ mt: 3 }}>
-                      <Typography variant="h6" gutterBottom color="primary">
-                        Escaneando...
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                        Coloca el código QR dentro del marco
-                      </Typography>
-                      
-                      <Button
-                        variant="outlined"
-                        onClick={stopScanning}
-                        startIcon={<Close />}
-                      >
-                        Detener Escáner
-                      </Button>
-                    </Box>
-                  </Box>
-                )}
+                {renderScannerContent()}
               </Box>
             </CardContent>
           </Card>
