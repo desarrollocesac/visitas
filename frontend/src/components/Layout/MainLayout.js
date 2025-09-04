@@ -20,7 +20,8 @@ import {
   Chip,
   Paper,
   useTheme,
-  alpha
+  alpha,
+  Collapse
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -40,7 +41,12 @@ import {
   BarChart,
   Timeline,
   Groups,
-  QrCodeScanner
+  QrCodeScanner,
+  Build,
+  ExpandLess,
+  ExpandMore,
+  Description,
+  FiberManualRecord
 } from '@mui/icons-material';
 import { useAuth, ROLES } from '../../contexts/AuthContext';
 
@@ -53,6 +59,7 @@ const MainLayout = ({ children }) => {
   const { user, logout, hasPermission, hasRole } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [profileMenuAnchor, setProfileMenuAnchor] = useState(null);
+  const [maintenanceOpen, setMaintenanceOpen] = useState(false);
 
   const handleNavigate = (path) => {
     navigate(path);
@@ -77,6 +84,14 @@ const MainLayout = ({ children }) => {
   const handleLogout = () => {
     handleProfileMenuClose();
     logout();
+  };
+
+  const handleMaintenanceToggle = () => {
+    setMaintenanceOpen(!maintenanceOpen);
+  };
+
+  const isMaintenanceRoute = () => {
+    return location.pathname.startsWith('/maintenance');
   };
 
   const getNavigationItems = () => {
@@ -457,6 +472,130 @@ const MainLayout = ({ children }) => {
               )}
             </ListItemButton>
           ))}
+
+          {/* Mantenimientos Menu - Solo Admin */}
+          {(hasPermission('maintenance.manage') || hasRole(ROLES.ADMIN)) && (
+            <>
+              <ListItemButton
+                onClick={handleMaintenanceToggle}
+                selected={isMaintenanceRoute()}
+                sx={{
+                  minHeight: 48,
+                  mb: 0.5,
+                  borderRadius: 2,
+                  backgroundColor: isMaintenanceRoute()
+                    ? alpha(theme.palette.secondary.main, 0.12)
+                    : 'transparent',
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.secondary.main, 0.08),
+                    '& .MuiListItemIcon-root': {
+                      color: theme.palette.secondary.main,
+                    }
+                  },
+                  '&.Mui-selected': {
+                    backgroundColor: alpha(theme.palette.secondary.main, 0.12),
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.secondary.main, 0.16),
+                    },
+                    '& .MuiListItemIcon-root': {
+                      color: theme.palette.secondary.main,
+                    },
+                    '& .MuiListItemText-primary': {
+                      color: theme.palette.secondary.main,
+                      fontWeight: 600,
+                    }
+                  }
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    minWidth: 0,
+                    mr: drawerOpen ? 3 : 'auto',
+                    justifyContent: 'center',
+                    color: isMaintenanceRoute()
+                      ? theme.palette.secondary.main
+                      : alpha(theme.palette.secondary.main, 0.7)
+                  }}
+                >
+                  <Build />
+                </ListItemIcon>
+                
+                {drawerOpen && (
+                  <>
+                    <ListItemText
+                      primary="Mantenimientos"
+                      primaryTypographyProps={{
+                        fontSize: '0.875rem',
+                        fontWeight: isMaintenanceRoute() ? 600 : 500,
+                        color: isMaintenanceRoute() ? theme.palette.secondary.main : 'inherit'
+                      }}
+                    />
+                    {maintenanceOpen ? <ExpandLess /> : <ExpandMore />}
+                  </>
+                )}
+              </ListItemButton>
+
+              <Collapse in={maintenanceOpen && drawerOpen} timeout="auto" unmountOnExit>
+                <List component="div" disablePadding>
+                  <ListItemButton
+                    sx={{ pl: 4, borderRadius: 2, mx: 1, mb: 0.5 }}
+                    onClick={() => handleNavigate('/maintenance/document-types')}
+                    selected={isActiveRoute('/maintenance/document-types')}
+                  >
+                    <ListItemIcon sx={{ minWidth: 0, mr: 2, justifyContent: 'center' }}>
+                      <FiberManualRecord sx={{ fontSize: 8 }} />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="Tipos de Documentos"
+                      primaryTypographyProps={{ fontSize: '0.8rem' }}
+                    />
+                  </ListItemButton>
+                  
+                  <ListItemButton
+                    sx={{ pl: 4, borderRadius: 2, mx: 1, mb: 0.5 }}
+                    onClick={() => handleNavigate('/maintenance/employees')}
+                    selected={isActiveRoute('/maintenance/employees')}
+                  >
+                    <ListItemIcon sx={{ minWidth: 0, mr: 2, justifyContent: 'center' }}>
+                      <FiberManualRecord sx={{ fontSize: 8 }} />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="Empleados"
+                      primaryTypographyProps={{ fontSize: '0.8rem' }}
+                    />
+                  </ListItemButton>
+                  
+                  <ListItemButton
+                    sx={{ pl: 4, borderRadius: 2, mx: 1, mb: 0.5 }}
+                    onClick={() => handleNavigate('/maintenance/departments')}
+                    selected={isActiveRoute('/maintenance/departments')}
+                  >
+                    <ListItemIcon sx={{ minWidth: 0, mr: 2, justifyContent: 'center' }}>
+                      <FiberManualRecord sx={{ fontSize: 8 }} />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="Departamentos"
+                      primaryTypographyProps={{ fontSize: '0.8rem' }}
+                    />
+                  </ListItemButton>
+                  
+                  <ListItemButton
+                    sx={{ pl: 4, borderRadius: 2, mx: 1, mb: 0.5 }}
+                    onClick={() => handleNavigate('/maintenance/authorized-areas')}
+                    selected={isActiveRoute('/maintenance/authorized-areas')}
+                  >
+                    <ListItemIcon sx={{ minWidth: 0, mr: 2, justifyContent: 'center' }}>
+                      <FiberManualRecord sx={{ fontSize: 8 }} />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="Áreas de Acceso"
+                      primaryTypographyProps={{ fontSize: '0.8rem' }}
+                    />
+                  </ListItemButton>
+                </List>
+              </Collapse>
+            </>
+          )}
         </List>
 
         <Box sx={{ flexGrow: 1 }} />

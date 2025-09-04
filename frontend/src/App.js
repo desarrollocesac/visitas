@@ -15,6 +15,7 @@ import UserManagement from './components/Users/UserManagement';
 import AdvancedAnalytics from './components/Analytics/AdvancedAnalytics';
 import QRScanner from './components/Scanner/QRScanner';
 import SystemSettings from './components/Settings/SystemSettings';
+import MaintenanceIndex from './components/Maintenance/index';
 
 // Import Google Fonts
 const fontLink = document.createElement('link');
@@ -153,8 +154,17 @@ const AppRoutes = () => {
           }
         />
         
-        <Route 
-          path="/scanner" 
+        <Route
+          path="/maintenance/*"
+          element={
+            <ProtectedRoute requiredPermission="maintenance.manage">
+              <MaintenanceIndex />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/scanner"
           element={
             <ProtectedRoute requiredPermission="visitor.register">
               <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -162,7 +172,7 @@ const AppRoutes = () => {
                 <p>Funcionalidad de escáner QR en desarrollo...</p>
               </Box>
             </ProtectedRoute>
-          } 
+          }
         />
         
         <Route 

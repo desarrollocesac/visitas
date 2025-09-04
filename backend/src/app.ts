@@ -11,6 +11,7 @@ import visitorRoutes from './routes/visitors';
 import visitRoutes from './routes/visits';
 import reportRoutes from './routes/reports';
 import userRoutes from './routes/users';
+import maintenanceRoutes from './routes/maintenance';
 
 // Import configuration
 import { connectDB } from './config/database';
@@ -55,6 +56,7 @@ app.use('/api/visitors', visitorRoutes);
 app.use('/api/visits', visitRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/maintenance', maintenanceRoutes);
 
 // Departments endpoint
 app.get('/api/departments', async (req, res) => {

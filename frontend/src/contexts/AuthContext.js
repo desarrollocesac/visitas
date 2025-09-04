@@ -28,7 +28,8 @@ export const PERMISSIONS = {
     'reports.export',
     'settings.manage',
     'users.manage',
-    'system.monitor'
+    'system.monitor',
+    'maintenance.manage'
   ],
   [ROLES.MANAGER]: [
     'visitor.register',
@@ -86,12 +87,23 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Verificar si hay sesión guardada
     const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
+    const savedToken = localStorage.getItem('token');
+    
+    if (savedUser && savedToken) {
       try {
         const parsedUser = JSON.parse(savedUser);
-        setUser(parsedUser);
+        // Verificar si el token no ha expirado
+        const tokenData = JSON.parse(atob(savedToken));
+        if (tokenData.exp > Date.now()) {
+          setUser(parsedUser);
+        } else {
+          // Token expirado, limpiar storage
+          localStorage.removeItem('currentUser');
+          localStorage.removeItem('token');
+        }
       } catch (error) {
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('token');
       }
     }
     setLoading(false);
@@ -106,19 +118,30 @@ export const AuthProvider = ({ children }) => {
 
       if (foundUser) {
         const { password: _, ...userWithoutPassword } = foundUser;
+        
+        // Generar token JWT simulado
+        const mockToken = btoa(JSON.stringify({
+          userId: userWithoutPassword.id,
+          username: userWithoutPassword.username,
+          role: userWithoutPassword.role,
+          exp: Date.now() + (24 * 60 * 60 * 1000) // 24 horas
+        }));
+        
         setUser(userWithoutPassword);
         localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
+        localStorage.setItem('token', mockToken);
+        
         return { success: true, user: userWithoutPassword };
       } else {
-        return { 
-          success: false, 
-          error: 'Usuario o contraseña incorrectos' 
+        return {
+          success: false,
+          error: 'Usuario o contraseña incorrectos'
         };
       }
     } catch (error) {
-      return { 
-        success: false, 
-        error: 'Error al iniciar sesión' 
+      return {
+        success: false,
+        error: 'Error al iniciar sesión'
       };
     }
   };
@@ -126,6 +149,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('currentUser');
+    localStorage.removeItem('token');
   };
 
   const hasPermission = (permission) => {
