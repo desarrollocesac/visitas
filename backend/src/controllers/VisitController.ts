@@ -236,8 +236,19 @@ export class VisitController {
       const stickerData = StickerService.prepareStickerData(fullVisit);
 
       if (format === 'image') {
-        // Generate actual sticker image
-        const stickerImage = await StickerService.createStickerImage(stickerData);
+        // Get visitor photo if available
+        let visitorPhotoBuffer: Buffer | undefined;
+        if (fullVisit.visitorPhotoPath) {
+          try {
+            const { FileService } = require('../services/FileService');
+            visitorPhotoBuffer = await FileService.getImageBuffer(fullVisit.visitorPhotoPath);
+          } catch (photoError) {
+            console.warn('Could not load visitor photo for sticker:', photoError);
+          }
+        }
+
+        // Generate actual sticker image with photo
+        const stickerImage = await StickerService.createStickerImage(stickerData, visitorPhotoBuffer);
         
         res.set({
           'Content-Type': 'image/png',

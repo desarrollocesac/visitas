@@ -11,6 +11,7 @@ export interface StickerData {
   checkInTime: Date;
   accessAreas: string[];
   qrCodeData: string;
+  visitorPhotoPath?: string;
 }
 
 export class StickerService {
@@ -33,8 +34,8 @@ export class StickerService {
     }
   }
 
-  // Crear imagen del sticker completo
-  static async createStickerImage(stickerData: StickerData): Promise<Buffer> {
+  // Crear imagen del sticker completo (formato vertical tipo badge)
+  static async createStickerImage(stickerData: StickerData, visitorPhotoBuffer?: Buffer): Promise<Buffer> {
     try {
       // Generar QR code
       const qrCode = await this.generateQRCode(stickerData.qrCodeData);
@@ -42,85 +43,130 @@ export class StickerService {
       // Formatear fecha y hora
       const checkInDate = new Date(stickerData.checkInTime);
       const dateStr = checkInDate.toLocaleDateString('es-ES');
-      const timeStr = checkInDate.toLocaleTimeString('es-ES', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
+      const timeStr = checkInDate.toLocaleTimeString('es-ES', {
+        hour: '2-digit',
+        minute: '2-digit'
       });
 
-      // Crear texto SVG para el sticker
+      // Crear el SVG del sticker vertical tipo badge profesional
       const stickerSVG = `
-        <svg width="400" height="300" xmlns="http://www.w3.org/2000/svg">
+        <svg width="320" height="480" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <style>
-              .title { font-family: Arial, sans-serif; font-size: 18px; font-weight: bold; fill: #333; }
-              .label { font-family: Arial, sans-serif; font-size: 12px; font-weight: bold; fill: #666; }
-              .value { font-family: Arial, sans-serif; font-size: 12px; fill: #333; }
-              .small { font-family: Arial, sans-serif; font-size: 10px; fill: #666; }
+              .title { font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; fill: white; text-anchor: middle; }
+              .name { font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; fill: #2c3e50; text-anchor: middle; }
+              .company { font-family: Arial, sans-serif; font-size: 12px; fill: #34495e; text-anchor: middle; }
+              .label { font-family: Arial, sans-serif; font-size: 10px; font-weight: bold; fill: #7f8c8d; }
+              .value { font-family: Arial, sans-serif; font-size: 11px; fill: #2c3e50; }
+              .areas { font-family: Arial, sans-serif; font-size: 9px; fill: #7f8c8d; text-anchor: middle; }
+              .id { font-family: Arial, sans-serif; font-size: 8px; fill: #95a5a6; text-anchor: middle; }
             </style>
           </defs>
           
-          <!-- Background -->
-          <rect width="400" height="300" fill="#f8f9fa" stroke="#e9ecef" stroke-width="2" rx="10"/>
+          <!-- Background principal -->
+          <rect width="320" height="480" fill="white" stroke="#bdc3c7" stroke-width="1" rx="15"/>
           
-          <!-- Header -->
-          <rect width="400" height="40" fill="#007bff" rx="10" ry="0"/>
-          <text x="200" y="25" text-anchor="middle" class="title" fill="white">PASE DE VISITANTE</text>
+          <!-- Header azul -->
+          <rect width="320" height="50" fill="#3498db" rx="15" ry="15"/>
+          <rect width="320" height="35" fill="#3498db"/>
+          <text x="160" y="32" class="title">VISITOR PASS</text>
           
-          <!-- Visitor Info -->
-          <text x="20" y="70" class="label">VISITANTE:</text>
-          <text x="20" y="85" class="value">${stickerData.visitorName}</text>
+          <!-- Espacio para foto circular (placeholder) -->
+          <circle cx="160" cy="120" r="45" fill="#ecf0f1" stroke="#bdc3c7" stroke-width="2"/>
+          <text x="160" y="125" text-anchor="middle" font-family="Arial" font-size="12" fill="#95a5a6">FOTO</text>
           
+          <!-- Nombre del visitante -->
+          <text x="160" y="195" class="name">${stickerData.visitorName}</text>
+          
+          <!-- Empresa (si existe) -->
           ${stickerData.company ? `
-          <text x="20" y="105" class="label">EMPRESA:</text>
-          <text x="20" y="120" class="value">${stickerData.company}</text>
+          <text x="160" y="215" class="company">${stickerData.company}</text>
           ` : ''}
           
-          <!-- Visit Info -->
-          <text x="20" y="${stickerData.company ? 140 : 120}" class="label">ANFITRIÓN:</text>
-          <text x="20" y="${stickerData.company ? 155 : 135}" class="value">${stickerData.hostName}</text>
+          <!-- Información de la visita -->
+          <g transform="translate(30, ${stickerData.company ? 240 : 225})">
+            <text x="0" y="0" class="label">ANFITRIÓN:</text>
+            <text x="0" y="15" class="value">${stickerData.hostName}</text>
+            
+            <text x="0" y="35" class="label">DEPARTAMENTO:</text>
+            <text x="0" y="50" class="value">${stickerData.department}</text>
+            
+            <text x="0" y="70" class="label">FECHA DE INGRESO:</text>
+            <text x="0" y="85" class="value">${dateStr} - ${timeStr}</text>
+          </g>
           
-          <text x="20" y="${stickerData.company ? 175 : 155}" class="label">DEPARTAMENTO:</text>
-          <text x="20" y="${stickerData.company ? 190 : 170}" class="value">${stickerData.department}</text>
+          <!-- Áreas de acceso -->
+          <text x="160" y="${stickerData.company ? 365 : 350}" class="areas">Áreas autorizadas:</text>
+          <text x="160" y="${stickerData.company ? 380 : 365}" class="areas">${stickerData.accessAreas.join(', ')}</text>
           
-          <!-- Date and Time -->
-          <text x="20" y="${stickerData.company ? 210 : 190}" class="label">FECHA:</text>
-          <text x="20" y="${stickerData.company ? 225 : 205}" class="value">${dateStr}</text>
-          
-          <text x="20" y="${stickerData.company ? 245 : 225}" class="label">HORA INGRESO:</text>
-          <text x="20" y="${stickerData.company ? 260 : 240}" class="value">${timeStr}</text>
-          
-          <!-- Access Areas -->
-          <text x="20" y="280" class="small">Áreas autorizadas: ${stickerData.accessAreas.join(', ')}</text>
-          
-          <!-- Visit ID -->
-          <text x="380" y="295" text-anchor="end" class="small">ID: ${stickerData.visitId}</text>
+          <!-- Footer con ID -->
+          <rect x="0" y="450" width="320" height="30" fill="#34495e" rx="0" ry="15"/>
+          <rect x="0" y="450" width="320" height="15" fill="#34495e"/>
+          <text x="160" y="468" class="id" fill="white">ID: ${stickerData.visitId.substring(0, 8)}...</text>
         </svg>
       `;
 
       // Convertir SVG a buffer de imagen
       const svgBuffer = Buffer.from(stickerSVG);
-      const baseImage = await sharp(svgBuffer).png().toBuffer();
+      let baseImage = await sharp(svgBuffer).png().toBuffer();
 
-      // Redimensionar QR code y combinarlo con el sticker
-      const resizedQR = await sharp(qrCode)
-        .resize(80, 80)
-        .png()
-        .toBuffer();
+      // Lista de composiciones para aplicar
+      const compositions: any[] = [];
 
-      // Componer imagen final
-      const finalSticker = await sharp(baseImage)
-        .composite([
-          {
-            input: resizedQR,
-            top: 60,
-            left: 300,
+      // Agregar foto del visitante si está disponible
+      if (visitorPhotoBuffer) {
+        try {
+          const circularPhoto = await sharp(visitorPhotoBuffer)
+            .resize(90, 90)
+            .composite([{
+              input: Buffer.from(`
+                <svg width="90" height="90">
+                  <defs>
+                    <mask id="circle">
+                      <circle cx="45" cy="45" r="43" fill="white"/>
+                    </mask>
+                  </defs>
+                  <rect width="90" height="90" fill="black" mask="url(#circle)"/>
+                </svg>
+              `),
+              blend: 'dest-in'
+            }])
+            .png()
+            .toBuffer();
+
+          compositions.push({
+            input: circularPhoto,
+            top: 75,
+            left: 115,
             blend: 'over'
-          }
-        ])
+          });
+        } catch (photoError) {
+          console.warn('Could not process visitor photo:', photoError);
+        }
+      }
+
+      // Agregar QR code redimensionado
+      const resizedQR = await sharp(qrCode)
+        .resize(60, 60)
         .png()
         .toBuffer();
 
-      return finalSticker;
+      compositions.push({
+        input: resizedQR,
+        top: stickerData.company ? 395 : 380,
+        left: 130,
+        blend: 'over'
+      });
+
+      // Componer imagen final si hay elementos que agregar
+      if (compositions.length > 0) {
+        baseImage = await sharp(baseImage)
+          .composite(compositions)
+          .png()
+          .toBuffer();
+      }
+
+      return baseImage;
 
     } catch (error) {
       console.error('Error creating sticker image:', error);
@@ -138,6 +184,7 @@ export class StickerService {
       department: visitData.department,
       checkInTime: visitData.checkInTime,
       accessAreas: visitData.accessAreas || [],
+      visitorPhotoPath: visitData.visitorPhotoPath,
       qrCodeData: JSON.stringify({
         visitId: visitData.id,
         type: 'visit_access',
@@ -162,8 +209,8 @@ export class StickerService {
         printTime: new Date().toISOString()
       },
       layout: {
-        width: 400,
-        height: 300,
+        width: 320,
+        height: 480,
         format: 'png',
         dpi: 300
       }
