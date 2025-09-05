@@ -99,10 +99,10 @@ const StickerPreview = ({ visitData, onClose }) => {
     <Box sx={{ maxWidth: 900, mx: 'auto', p: 2 }}>
       <Grid container spacing={3}>
         {/* Vista Previa del Sticker Vertical */}
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={4} sx={{ display: 'none' }}>
           <Card elevation={3} sx={{ height: 'fit-content' }}>
             <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h6" gutterBottom>
+              <Typography variant="h6" gutterBottom sx={{ textAlign: 'center' }}>
                 Vista Previa del Sticker
               </Typography>
               
@@ -116,7 +116,8 @@ const StickerPreview = ({ visitData, onClose }) => {
                   borderRadius: 3,
                   bgcolor: 'white',
                   position: 'relative',
-                  boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                  boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                  textAlign: 'center'
                 }}
               >
                 {/* Header */}
@@ -128,15 +129,15 @@ const StickerPreview = ({ visitData, onClose }) => {
                   fontSize: '10px',
                   fontWeight: 'bold'
                 }}>
-                  VISITOR PASS
+                  PASE DE VISITANTE
                 </Box>
                 
                 {/* Photo Area */}
                 <Box sx={{ py: 2 }}>
                   <Avatar
                     sx={{
-                      width: 60,
-                      height: 60,
+                      width: 80,
+                      height: 80,
                       mx: 'auto',
                       bgcolor: '#ecf0f1',
                       color: '#95a5a6'
@@ -147,8 +148,13 @@ const StickerPreview = ({ visitData, onClose }) => {
                 </Box>
                 
                 {/* Visitor Name */}
-                <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '11px' }}>
+                <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '11px', display: 'block' }}>
                   {visitData.visitor.firstName} {visitData.visitor.lastName}
+                </Typography>
+                
+                {/* Document Number (Cédula/Pasaporte) */}
+                <Typography variant="caption" sx={{ display: 'block', fontSize: '9px', color: 'text.secondary', mb: 0.5 }}>
+                  {visitData.visitor.documentType}: {visitData.visitor.documentNumber}
                 </Typography>
                 
                 {/* Company */}
@@ -275,18 +281,14 @@ const StickerPreview = ({ visitData, onClose }) => {
                   <Typography variant="body1" sx={{ mb: 1 }}>
                     {visitData.visit.hostName}
                   </Typography>
-                </Grid>
-                
-                <Grid item xs={12} sm={6}>
+
                   <Typography variant="subtitle2" color="text.secondary">
                     Departamento
                   </Typography>
                   <Typography variant="body1" sx={{ mb: 1 }}>
                     {visitData.visit.department}
                   </Typography>
-                </Grid>
 
-                <Grid item xs={12}>
                   <Typography variant="subtitle2" color="text.secondary">
                     Propósito de la Visita
                   </Typography>
@@ -294,7 +296,7 @@ const StickerPreview = ({ visitData, onClose }) => {
                     {visitData.visit.purpose}
                   </Typography>
                 </Grid>
-
+                
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" color="text.secondary">
                     <AccessTime sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
@@ -303,9 +305,7 @@ const StickerPreview = ({ visitData, onClose }) => {
                   <Typography variant="body1" sx={{ mb: 1 }}>
                     {formatDate(visitData.visit.checkInTime)}
                   </Typography>
-                </Grid>
 
-                <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" color="text.secondary">
                     Hora de Ingreso
                   </Typography>
