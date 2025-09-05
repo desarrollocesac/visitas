@@ -1,5 +1,6 @@
 export interface Visitor {
   id?: string;
+  documentType: string;
   idNumber: string;
   firstName: string;
   lastName: string;
@@ -55,6 +56,7 @@ export interface APIResponse<T = any> {
 }
 
 export interface VisitRequest {
+  documentType: string;
   idNumber: string;
   firstName: string;
   lastName: string;

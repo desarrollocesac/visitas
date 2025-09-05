@@ -55,6 +55,7 @@ export class VisitorController {
         console.log('Creating new visitor...');
         // Create new visitor
         visitor = await VisitorModel.create({
+          documentType: visitData.documentType,
           idNumber: visitData.idNumber,
           firstName: visitData.firstName,
           lastName: visitData.lastName,

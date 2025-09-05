@@ -409,12 +409,28 @@ const VisitorRegistration = () => {
 
     const submitFormData = new FormData();
     
-    // Add form fields
+    // Map form fields to match backend expectations
+    const fieldMapping = {
+      'documentType': 'documentType',
+      'documentNumber': 'idNumber',
+      'firstName': 'firstName',
+      'lastName': 'lastName',
+      'email': 'email',
+      'phone': 'phone',
+      'company': 'company',
+      'hostName': 'hostName',
+      'department': 'department',
+      'purpose': 'purpose',
+      'accessAreas': 'accessAreas'
+    };
+    
+    // Add form fields with proper mapping
     Object.keys(formData).forEach(key => {
+      const backendKey = fieldMapping[key] || key;
       if (key === 'accessAreas') {
-        submitFormData.append(key, JSON.stringify(formData[key]));
+        submitFormData.append(backendKey, JSON.stringify(formData[key]));
       } else {
-        submitFormData.append(key, formData[key]);
+        submitFormData.append(backendKey, formData[key]);
       }
     });
 

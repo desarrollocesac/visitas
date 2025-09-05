@@ -4,14 +4,15 @@ import { Visitor } from '../types';
 export class VisitorModel {
   static async create(visitor: Omit<Visitor, 'id' | 'createdAt' | 'updatedAt'>): Promise<Visitor> {
     const query = `
-      INSERT INTO visitors (id_number, first_name, last_name, email, phone, company, photo_path, id_photo_path)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING id, id_number as "idNumber", first_name as "firstName", last_name as "lastName", 
+      INSERT INTO visitors (document_type, id_number, first_name, last_name, email, phone, company, photo_path, id_photo_path)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING id, document_type as "documentType", id_number as "idNumber", first_name as "firstName", last_name as "lastName",
                 email, phone, company, photo_path as "photoPath", id_photo_path as "idPhotoPath",
                 created_at as "createdAt", updated_at as "updatedAt"
     `;
     
     const values = [
+      visitor.documentType,
       visitor.idNumber,
       visitor.firstName,
       visitor.lastName,
@@ -28,10 +29,10 @@ export class VisitorModel {
 
   static async findByIdNumber(idNumber: string): Promise<Visitor | null> {
     const query = `
-      SELECT id, id_number as "idNumber", first_name as "firstName", last_name as "lastName",
+      SELECT id, document_type as "documentType", id_number as "idNumber", first_name as "firstName", last_name as "lastName",
              email, phone, company, photo_path as "photoPath", id_photo_path as "idPhotoPath",
              created_at as "createdAt", updated_at as "updatedAt"
-      FROM visitors 
+      FROM visitors
       WHERE id_number = $1
     `;
     
@@ -41,10 +42,10 @@ export class VisitorModel {
 
   static async findById(id: string): Promise<Visitor | null> {
     const query = `
-      SELECT id, id_number as "idNumber", first_name as "firstName", last_name as "lastName",
+      SELECT id, document_type as "documentType", id_number as "idNumber", first_name as "firstName", last_name as "lastName",
              email, phone, company, photo_path as "photoPath", id_photo_path as "idPhotoPath",
              created_at as "createdAt", updated_at as "updatedAt"
-      FROM visitors 
+      FROM visitors
       WHERE id = $1
     `;
     
@@ -54,10 +55,10 @@ export class VisitorModel {
 
   static async findAll(limit: number = 50, offset: number = 0): Promise<Visitor[]> {
     const query = `
-      SELECT id, id_number as "idNumber", first_name as "firstName", last_name as "lastName",
+      SELECT id, document_type as "documentType", id_number as "idNumber", first_name as "firstName", last_name as "lastName",
              email, phone, company, photo_path as "photoPath", id_photo_path as "idPhotoPath",
              created_at as "createdAt", updated_at as "updatedAt"
-      FROM visitors 
+      FROM visitors
       ORDER BY created_at DESC
       LIMIT $1 OFFSET $2
     `;
@@ -101,7 +102,7 @@ export class VisitorModel {
       UPDATE visitors 
       SET ${setClause.join(', ')}
       WHERE id = $${paramIndex}
-      RETURNING id, id_number as "idNumber", first_name as "firstName", last_name as "lastName",
+      RETURNING id, document_type as "documentType", id_number as "idNumber", first_name as "firstName", last_name as "lastName",
                 email, phone, company, photo_path as "photoPath", id_photo_path as "idPhotoPath",
                 created_at as "createdAt", updated_at as "updatedAt"
     `;

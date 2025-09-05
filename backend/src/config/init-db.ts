@@ -40,6 +40,7 @@ export const createTables = async () => {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS visitors (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        document_type VARCHAR(50) NOT NULL DEFAULT 'Cedula',
         id_number VARCHAR(50) UNIQUE NOT NULL,
         first_name VARCHAR(100) NOT NULL,
         last_name VARCHAR(100) NOT NULL,
@@ -51,6 +52,12 @@ export const createTables = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+
+    // Add document_type column if it doesn't exist (migration for existing tables)
+    await pool.query(`
+      ALTER TABLE visitors
+      ADD COLUMN IF NOT EXISTS document_type VARCHAR(50) NOT NULL DEFAULT 'Cedula'
     `);
 
     // Create departments table

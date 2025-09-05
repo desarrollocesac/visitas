@@ -56,6 +56,21 @@ import {
   Warning
 } from '@mui/icons-material';
 import { useAuth, ROLES } from '../../contexts/AuthContext';
+import axios from 'axios';
+
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+
+// Create axios instance with auth header
+const createAxiosInstance = () => {
+  const token = localStorage.getItem('token');
+  return axios.create({
+    baseURL: `${API_BASE}/api`,
+    headers: {
+      'Authorization': token ? `Bearer ${token}` : '',
+      'Content-Type': 'application/json',
+    },
+  });
+};
 
 const UserManagement = () => {
   const theme = useTheme();
@@ -67,96 +82,49 @@ const UserManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
-
-  // Mock data for users
-  const mockUsers = [
-    {
-      id: 1,
-      name: 'María González',
-      email: 'admin@empresa.com',
-      role: ROLES.ADMIN,
-      department: 'Administración',
-      status: 'active',
-      lastLogin: '2025-01-03 09:30',
-      createdAt: '2024-01-15',
-      permissions: ['*']
-    },
-    {
-      id: 2,
-      name: 'Carlos Rodríguez',
-      email: 'manager@empresa.com',
-      role: ROLES.MANAGER,
-      department: 'Gerencia',
-      status: 'active',
-      lastLogin: '2025-01-03 08:45',
-      createdAt: '2024-02-20',
-      permissions: ['visitor.*', 'reports.*', 'system.monitor']
-    },
-    {
-      id: 3,
-      name: 'Ana López',
-      email: 'analyst@empresa.com',
-      role: ROLES.ANALYST,
-      department: 'Análisis',
-      status: 'active',
-      lastLogin: '2025-01-02 16:20',
-      createdAt: '2024-03-10',
-      permissions: ['visitor.view', 'reports.view']
-    },
-    {
-      id: 4,
-      name: 'Luis Martín',
-      email: 'luis.martin@empresa.com',
-      role: ROLES.MANAGER,
-      department: 'Operaciones',
-      status: 'inactive',
-      lastLogin: '2024-12-28 14:15',
-      createdAt: '2024-05-05',
-      permissions: ['visitor.*', 'reports.*']
-    },
-    {
-      id: 5,
-      name: 'Sofia Herrera',
-      email: 'sofia.herrera@empresa.com',
-      role: ROLES.ANALYST,
-      department: 'Marketing',
-      status: 'active',
-      lastLogin: '2025-01-03 10:00',
-      createdAt: '2024-06-12',
-      permissions: ['visitor.view', 'reports.view']
-    }
-  ];
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    // Simular carga de datos
-    setTimeout(() => {
-      setUsers(mockUsers);
-      setLoading(false);
-    }, 1000);
+    loadUsers();
   }, []);
+
+  const loadUsers = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const api = createAxiosInstance();
+      const response = await api.get('/users');
+      setUsers(response.data.users || []);
+    } catch (err) {
+      console.error('Error loading users:', err);
+      setError('Error al cargar usuarios');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getRoleInfo = (role) => {
     const roleConfigs = {
-      [ROLES.ADMIN]: {
+      'ADMIN': {
         label: 'Administrador',
         color: theme.palette.error.main,
         icon: <AdminPanelSettings />,
         description: 'Acceso completo al sistema'
       },
-      [ROLES.MANAGER]: {
+      'MANAGER': {
         label: 'Gerente',
         color: theme.palette.warning.main,
         icon: <Business />,
         description: 'Gestión operativa y reportes'
       },
-      [ROLES.ANALYST]: {
+      'ANALYST': {
         label: 'Analista',
         color: theme.palette.success.main,
         icon: <Analytics />,
         description: 'Consultas y análisis'
       }
     };
-    return roleConfigs[role] || roleConfigs[ROLES.ANALYST];
+    return roleConfigs[role] || roleConfigs['ANALYST'];
   };
 
   const getStatusInfo = (status) => {
@@ -180,9 +148,10 @@ const UserManagement = () => {
   };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.department.toLowerCase().includes(searchTerm.toLowerCase());
+    const fullName = `${user.first_name} ${user.last_name}`.toLowerCase();
+    const matchesSearch = fullName.includes(searchTerm.toLowerCase()) ||
+                         user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === '' || user.role === filterRole;
     return matchesSearch && matchesRole;
   });
@@ -197,56 +166,94 @@ const UserManagement = () => {
     setOpenDialog(true);
   };
 
-  const handleDeleteUser = (userId) => {
+  const handleDeleteUser = async (userId) => {
     if (window.confirm('¿Está seguro de que desea eliminar este usuario?')) {
-      setUsers(users.filter(user => user.id !== userId));
-      setAlertMessage('Usuario eliminado exitosamente');
+      try {
+        const api = createAxiosInstance();
+        await api.delete(`/users/${userId}`);
+        setAlertMessage('Usuario eliminado exitosamente');
+        loadUsers(); // Reload the list
+      } catch (err) {
+        console.error('Error deleting user:', err);
+        setError('Error al eliminar usuario');
+      }
       setTimeout(() => setAlertMessage(''), 3000);
     }
   };
 
-  const handleToggleStatus = (userId) => {
-    setUsers(users.map(user => 
-      user.id === userId 
-        ? { ...user, status: user.status === 'active' ? 'inactive' : 'active' }
-        : user
-    ));
+  const handleToggleStatus = async (userId) => {
+    try {
+      const user = users.find(u => u.id === userId);
+      const api = createAxiosInstance();
+      await api.put(`/users/${userId}`, {
+        is_active: !user.is_active
+      });
+      setAlertMessage('Estado del usuario actualizado');
+      loadUsers(); // Reload the list
+    } catch (err) {
+      console.error('Error toggling user status:', err);
+      setError('Error al cambiar estado del usuario');
+    }
   };
 
-  const handleSaveUser = (userData) => {
-    if (selectedUser) {
-      // Editar usuario existente
-      setUsers(users.map(user => 
-        user.id === selectedUser.id ? { ...user, ...userData } : user
-      ));
-      setAlertMessage('Usuario actualizado exitosamente');
-    } else {
-      // Crear nuevo usuario
-      const newUser = {
-        ...userData,
-        id: Math.max(...users.map(u => u.id)) + 1,
-        status: 'active',
-        createdAt: new Date().toISOString().split('T')[0],
-        lastLogin: 'Nunca'
-      };
-      setUsers([...users, newUser]);
-      setAlertMessage('Usuario creado exitosamente');
+  const handleSaveUser = async (userData) => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      const api = createAxiosInstance();
+      
+      if (selectedUser) {
+        // Update existing user
+        await api.put(`/users/${selectedUser.id}`, userData);
+        setAlertMessage('Usuario actualizado exitosamente');
+      } else {
+        // Create new user
+        await api.post('/users', userData);
+        setAlertMessage('Usuario creado exitosamente');
+      }
+      
+      setOpenDialog(false);
+      loadUsers(); // Reload the list
+    } catch (err) {
+      console.error('Error saving user:', err);
+      if (err.response?.data?.error) {
+        setError(err.response.data.error);
+      } else {
+        setError('Error al guardar usuario');
+      }
+    } finally {
+      setLoading(false);
     }
-    setOpenDialog(false);
     setTimeout(() => setAlertMessage(''), 3000);
   };
 
   const UserDialog = ({ open, onClose, user, onSave }) => {
     const [formData, setFormData] = useState({
-      name: user?.name || '',
+      first_name: user ? user.first_name || '' : '',
+      last_name: user ? user.last_name || '' : '',
+      username: user?.username || '',
       email: user?.email || '',
-      role: user?.role || ROLES.ANALYST,
-      department: user?.department || '',
-      permissions: user?.permissions || []
+      password: '', // Only for new users
+      role: user?.role || 'ANALYST',
+      phone: user?.phone || ''
     });
 
     const handleSubmit = (e) => {
       e.preventDefault();
+      
+      // Validate required fields
+      if (!formData.first_name || !formData.last_name || !formData.username || !formData.email || !formData.role) {
+        setError('Todos los campos son requeridos');
+        return;
+      }
+      
+      // For new users, password is required
+      if (!user && !formData.password) {
+        setError('La contraseña es requerida para usuarios nuevos');
+        return;
+      }
+      
       onSave(formData);
     };
 
@@ -261,9 +268,27 @@ const UserManagement = () => {
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Nombre Completo"
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  label="Nombre"
+                  value={formData.first_name}
+                  onChange={(e) => setFormData({...formData, first_name: e.target.value})}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Apellido"
+                  value={formData.last_name}
+                  onChange={(e) => setFormData({...formData, last_name: e.target.value})}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Usuario"
+                  value={formData.username}
+                  onChange={(e) => setFormData({...formData, username: e.target.value})}
                   required
                 />
               </Grid>
@@ -277,6 +302,26 @@ const UserManagement = () => {
                   required
                 />
               </Grid>
+              {!user && (
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Contraseña"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    required={!user}
+                  />
+                </Grid>
+              )}
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Teléfono"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                />
+              </Grid>
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth required>
                   <InputLabel>Rol</InputLabel>
@@ -285,20 +330,11 @@ const UserManagement = () => {
                     label="Rol"
                     onChange={(e) => setFormData({...formData, role: e.target.value})}
                   >
-                    <MenuItem value={ROLES.ADMIN}>Administrador</MenuItem>
-                    <MenuItem value={ROLES.MANAGER}>Gerente</MenuItem>
-                    <MenuItem value={ROLES.ANALYST}>Analista</MenuItem>
+                    <MenuItem value="ADMIN">Administrador</MenuItem>
+                    <MenuItem value="MANAGER">Gerente</MenuItem>
+                    <MenuItem value="ANALYST">Analista</MenuItem>
                   </Select>
                 </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Departamento"
-                  value={formData.department}
-                  onChange={(e) => setFormData({...formData, department: e.target.value})}
-                  required
-                />
               </Grid>
             </Grid>
           </Box>
@@ -351,7 +387,7 @@ const UserManagement = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Box>
                 <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.success.main }}>
-                  {users.filter(u => u.status === 'active').length}
+                  {users.filter(u => u.is_active === true).length}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Usuarios Activos
@@ -374,7 +410,7 @@ const UserManagement = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Box>
                 <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.error.main }}>
-                  {users.filter(u => u.role === ROLES.ADMIN).length}
+                  {users.filter(u => u.role === 'ADMIN').length}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Administradores
@@ -397,7 +433,7 @@ const UserManagement = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Box>
                 <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.warning.main }}>
-                  {users.filter(u => u.role === ROLES.MANAGER).length}
+                  {users.filter(u => u.role === 'MANAGER').length}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Gerentes
@@ -438,8 +474,14 @@ const UserManagement = () => {
       </Box>
 
       {alertMessage && (
-        <Alert severity="success" sx={{ mb: 3 }}>
+        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setAlertMessage('')}>
           {alertMessage}
+        </Alert>
+      )}
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
+          {error}
         </Alert>
       )}
 
@@ -469,9 +511,9 @@ const UserManagement = () => {
                   onChange={(e) => setFilterRole(e.target.value)}
                 >
                   <MenuItem value="">Todos los roles</MenuItem>
-                  <MenuItem value={ROLES.ADMIN}>Administrador</MenuItem>
-                  <MenuItem value={ROLES.MANAGER}>Gerente</MenuItem>
-                  <MenuItem value={ROLES.ANALYST}>Analista</MenuItem>
+                  <MenuItem value="ADMIN">Administrador</MenuItem>
+                  <MenuItem value="MANAGER">Gerente</MenuItem>
+                  <MenuItem value="ANALYST">Analista</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -497,7 +539,7 @@ const UserManagement = () => {
               <TableRow>
                 <TableCell>Usuario</TableCell>
                 <TableCell>Rol</TableCell>
-                <TableCell>Departamento</TableCell>
+                <TableCell>Teléfono</TableCell>
                 <TableCell>Estado</TableCell>
                 <TableCell>Último Acceso</TableCell>
                 <TableCell>Fecha Creación</TableCell>
@@ -507,24 +549,25 @@ const UserManagement = () => {
             <TableBody>
               {filteredUsers.map((user) => {
                 const roleInfo = getRoleInfo(user.role);
-                const statusInfo = getStatusInfo(user.status);
+                const statusInfo = getStatusInfo(user.is_active ? 'active' : 'inactive');
+                const fullName = `${user.first_name} ${user.last_name}`;
                 
                 return (
                   <TableRow key={user.id} hover>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <Avatar
-                          sx={{ 
+                          sx={{
                             bgcolor: roleInfo.color,
                             width: 40,
                             height: 40
                           }}
                         >
-                          {user.name.split(' ').map(n => n[0]).join('')}
+                          {user.first_name[0]}{user.last_name[0]}
                         </Avatar>
                         <Box>
                           <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                            {user.name}
+                            {fullName}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
                             {user.email}
@@ -546,7 +589,7 @@ const UserManagement = () => {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {user.department}
+                        {user.phone || '-'}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -563,34 +606,38 @@ const UserManagement = () => {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
-                        {user.lastLogin}
+                        {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Nunca'}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
-                        {user.createdAt}
+                        {new Date(user.created_at).toLocaleDateString()}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Tooltip title="Ver detalles">
-                          <IconButton size="small">
-                            <Visibility />
+                        <Tooltip title={user.is_active ? 'Desactivar usuario' : 'Activar usuario'}>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleToggleStatus(user.id)}
+                            color={user.is_active ? 'success' : 'error'}
+                          >
+                            {user.is_active ? <CheckCircle /> : <Block />}
                           </IconButton>
                         </Tooltip>
                         {hasPermission('users.manage') && (
                           <>
                             <Tooltip title="Editar usuario">
-                              <IconButton 
-                                size="small" 
+                              <IconButton
+                                size="small"
                                 onClick={() => handleEditUser(user)}
                               >
                                 <Edit />
                               </IconButton>
                             </Tooltip>
                             <Tooltip title="Eliminar usuario">
-                              <IconButton 
-                                size="small" 
+                              <IconButton
+                                size="small"
                                 onClick={() => handleDeleteUser(user.id)}
                                 color="error"
                               >
