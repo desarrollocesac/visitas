@@ -23,11 +23,11 @@ visit-control-system/
 
 ### Credenciales
 ```
-DB_HOST=154.12.227.234
+DB_HOST=XXX.XXX.XXX.XXX
 DB_PORT=5432
 DB_NAME=visitcontrol_db
-DB_USER=postgresroot
-DB_PASSWORD=69dMb7HBjJLL
+DB_USER=**************
+DB_PASSWORD=**********
 ```
 
 ## Funcionalidades
@@ -85,11 +85,11 @@ npm run android # Para ejecutar en Android
 
 ### Backend (.env)
 ```
-DB_HOST=154.12.227.234
+DB_HOST=XXX.XXX.XXX.XXX
 DB_PORT=5432
 DB_NAME=visitcontrol_db
-DB_USER=postgresroot
-DB_PASSWORD=69dMb7HBjJLL
+DB_USER=**********
+DB_PASSWORD=**********
 PORT=3001
 NODE_ENV=development
 JWT_SECRET=your-super-secret-jwt-key
